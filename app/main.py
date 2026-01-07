@@ -24,3 +24,5 @@ app.include_router(auth.router)
 
 from app.api.time import history
 app.include_router(history.router)
+from app.api import me
+app.include_router(me.router)
