@@ -1,0 +1,26 @@
+# Python bytecode
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual Environment (Crucial: do not commit this)
+venv/
+env/
+.venv/
+
+# Environment Variables (Security: never commit secrets)
+.env
+.env.local
+
+# IDE Settings (VS Code / PyCharm)
+.vscode/
+.idea/
+
+# Distribution / Packaging
+dist/
+build/
+*.egg-info/
+
+# Operating System Files
+.DS_Store
+Thumbs.db
