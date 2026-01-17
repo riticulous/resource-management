@@ -15,6 +15,10 @@ def login_ui():
                 json={"email": email, "password": password},
             )
             st.session_state["token"] = data["access_token"]
+            st.session_state["user_id"] = data.get("user_id")
+            st.session_state["user_name"] = data.get("user_name")
+            st.session_state["user_email"] = data.get("user_email")
+            st.session_state["user_role"] = data.get("user_role")
             st.success("Logged in successfully")
             st.rerun()
         except Exception as e:

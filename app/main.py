@@ -52,3 +52,9 @@ app.include_router(attendance_daily.router)
 
 from app.api.admin.bulk_uploads import router as bulk_uploads_router
 app.include_router(bulk_uploads_router)
+
+from app.api.admin.attendance_requests import admin_router as admin_attendance_requests_router
+app.include_router(admin_attendance_requests_router)
+
+from app.api.admin import attendance_request_approvals
+app.include_router(attendance_request_approvals.router)
