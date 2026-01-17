@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from sqlalchemy import and_
 from uuid import UUID
-from typing import List
+from typing import List, Optional
 from datetime import datetime
 
 from app.db.session import get_db
@@ -126,3 +126,84 @@ def delete_request(
     db.commit()
 
     return {"message": "Attendance request deleted successfully"}
+
+
+# =====================
+# ADMIN ROUTER - For managers to view all requests
+# =====================
+admin_router = APIRouter(
+    prefix="/admin/attendance-requests",
+    tags=["Admin - Attendance Requests"]
+)
+
+
+@admin_router.get("/")
+def list_all_requests_with_user_info(
+    status: Optional[str] = None,
+    user_id: Optional[UUID] = None,
+    request_type: Optional[str] = None,
+    limit: int = 50,
+    offset: int = 0,
+    db: Session = Depends(get_db)
+):
+    """
+    Admin endpoint to list all attendance requests with user info.
+    Returns request data with user_name for display in Streamlit.
+    """
+    from app.models.user import User
+    
+    query = db.query(
+        AttendanceRequest,
+        User.name.label('user_name'),
+        User.email.label('user_email')
+    ).join(User, AttendanceRequest.user_id == User.id)
+
+    if status:
+        query = query.filter(AttendanceRequest.status == status)
+    
+    if user_id:
+        query = query.filter(AttendanceRequest.user_id == user_id)
+    
+    if request_type:
+        query = query.filter(AttendanceRequest.request_type == request_type)
+
+    results = (
+        query
+        .order_by(AttendanceRequest.created_at.desc())
+        .limit(limit)
+        .offset(offset)
+        .all()
+    )
+    
+    # Convert to dict with user info
+    response = []
+    for req, user_name, user_email in results:
+        req_dict = {
+            "id": str(req.id),
+            "user_id": str(req.user_id),
+            "user_name": user_name,
+            "user_email": user_email,
+            "project_id": str(req.project_id) if req.project_id else None,
+            "request_type": req.request_type,
+            "status": req.status,
+            "start_date": str(req.start_date),
+            "end_date": str(req.end_date),
+            "reason": req.reason,
+            "created_at": str(req.created_at),
+        }
+        response.append(req_dict)
+    
+    return response
+
+
+@admin_router.get("/{request_id}", response_model=AttendanceRequestResponse)
+def admin_get_request(request_id: UUID, db: Session = Depends(get_db)):
+    """Get a specific attendance request by ID"""
+    req = db.query(AttendanceRequest).filter(
+        AttendanceRequest.id == request_id
+    ).first()
+    
+    if not req:
+        raise HTTPException(status_code=404, detail="Attendance request not found")
+    
+    return req
