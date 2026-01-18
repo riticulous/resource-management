@@ -6,6 +6,8 @@ from app.api.admin import shifts
 from app.api import auth
 from app.api.admin import projects_daily
 from dotenv import load_dotenv
+from app.api import analytics
+from app.api import reports
 load_dotenv()
 
 
@@ -58,3 +60,5 @@ app.include_router(admin_attendance_requests_router)
 
 from app.api.admin import attendance_request_approvals
 app.include_router(attendance_request_approvals.router)
+app.include_router(analytics.router)
+app.include_router(reports.router)
