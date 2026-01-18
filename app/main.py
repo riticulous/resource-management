@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.middlewares.auth import auth_middleware
+# from app.middlewares.auth import auth_middleware
 from app.api.admin import users, projects
 from app.api.admin import shifts
 from app.api import auth
@@ -13,7 +13,7 @@ load_dotenv()
 
 app = FastAPI(title="Resource Management System")
 
-app.middleware("http")(auth_middleware)
+# app.middleware("http")(auth_middleware)
 
 app.add_middleware(
     CORSMiddleware,
@@ -24,7 +24,7 @@ app.add_middleware(
 
 app.include_router(users.router)
 app.include_router(projects.router)
-app.include_router(auth.router)
+# app.include_router(auth.router)
 app.include_router(projects_daily.router)
 
 from app.api.time import history
