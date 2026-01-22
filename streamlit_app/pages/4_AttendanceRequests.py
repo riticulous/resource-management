@@ -132,7 +132,15 @@ with cols[1]:
         for it in visible:
 
             status = (it.get("status") or "").upper()
-            badge = "badge-pending" if status=="PENDING" else ("badge-approved" if status=="APPROVED" else "badge-rejected")
+
+            if status=="PENDING":
+                badge_class = "badge-pending"
+            elif status=="APPROVED":
+                badge_class = "badge-approved"
+            elif status=="REJECTED":
+                badge_class = "badge-rejected"
+            else:
+                badge_class = "badge-pending"
 
             submitted_at = it.get("requested_at") or it.get("created_at")
             submitted_display = format_time_local(submitted_at)
@@ -142,25 +150,27 @@ with cols[1]:
             rcol,acol = st.columns([5,1])
 
             with rcol:
-                
+
                 st.markdown(
-                f"### {it.get('request_type', 'Request')} <span class='badge {badge_class}'>{status}</span>",
-                unsafe_allow_html=True
-            )
+                    f"### {it.get('request_type','Request')} "
+                    f"<span class='badge {badge_class}'>{status}</span>",
+                    unsafe_allow_html=True
+                )
 
-            st.markdown(
-                f"<div class='small'>Project: <b>{proj_map.get(it.get('project_id'), '—')}</b> • Submitted: {submitted_display}</div>",
-                unsafe_allow_html=True
-            )
+                st.markdown(
+                    f"<div class='small'>Project: <b>{proj_id_to_name.get(it.get('project_id'),'—')}</b> "
+                    f"• Submitted: {submitted_display}</div>",
+                    unsafe_allow_html=True
+                )
 
-            st.write(f"**Period:** {it.get('start_date') or '—'} → {it.get('end_date') or '—'}")
+                st.write(f"**Period:** {it.get('start_date') or '—'} → {it.get('end_date') or '—'}")
 
-            if it.get("reason"):
-                with st.expander("Reason"):
-                    st.write(it.get("reason"))
+                if it.get("reason"):
+                    with st.expander("Reason"):
+                        st.write(it.get("reason"))
 
             with acol:
-                
+
                 if status=="PENDING":
                     if st.button("Cancel",key=f"cancel_{it['id']}"):
                         cancel_request(token,it["id"])
@@ -173,3 +183,4 @@ with cols[1]:
 
     if st.button("Refresh"):
         st.rerun()
+
