@@ -1,7 +1,6 @@
 import streamlit as st
 from supabase_client import supabase
 
-
 def login_ui():
     st.title("Login")
 
