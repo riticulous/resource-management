@@ -19,7 +19,7 @@ Backend validates users using Supabase access tokens
 On first login, users are auto-registered into the local users table
 
 File Structure
-
+```
 resource-management/
 │
 ├── app/                         # FastAPI Backend
@@ -47,7 +47,7 @@ resource-management/
 │
 ├── .env                         # Environment variables
 └── README.md
-
+```
 🗄️ Core Database Tables
 
 
