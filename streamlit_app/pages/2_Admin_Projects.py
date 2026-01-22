@@ -11,22 +11,61 @@ API_BASE_URL = "http://127.0.0.1:8000"
 ROLE_OPTIONS = ["ANNOTATION", "QC", "LIVE_QC", "RETRO_QC", "PM", "APM", "RPM"]
 
 # --- HELPER FUNCTIONS ---
-def authenticated_request(method, endpoint, data=None):
+# def authenticated_request(method, endpoint, data=None):
+#     token = st.session_state.get("token")
+#     if not token:
+#         st.warning("🔒 Please login first.")
+#         st.stop()
+#
+#     headers = {"Authorization": f"Bearer {token}"}
+#     try:
+#         response = requests.request(method, f"{API_BASE_URL}{endpoint}", headers=headers, json=data)
+#         if response.status_code >= 400:
+#             st.error(f"❌ Error {response.status_code}: {response.text}")
+#             return None
+#         return response.json()
+#     except Exception as e:
+#         st.error(f"❌ Connection Error: {e}")
+#         return None
+
+def authenticated_request(method, endpoint, data=None, uploaded_file=None):
     token = st.session_state.get("token")
+    
     if not token:
         st.warning("🔒 Please login first.")
         st.stop()
-    
+
     headers = {"Authorization": f"Bearer {token}"}
+    
+    # enforce ONE payload type
+    if data is not None and uploaded_file is not None:
+        st.error("❌ Cannot send JSON and file in the same request.")
+        return None
+     
+    url = f"{API_BASE_URL}{endpoint}"
+
     try:
-        response = requests.request(method, f"{API_BASE_URL}{endpoint}", headers=headers, json=data)
+        response = None
+        # for file upload
+        if uploaded_file is not None:
+            files = {
+                "file": (uploaded_file.name, uploaded_file.getvalue(), uploaded_file.type)
+            }
+            with st.spinner("Uploading file..."):
+                response = requests.request(method, url, headers=headers, files=files)
+        else:
+            # for json payload
+            response = requests.request(method, url, headers=headers, json=data)
+        
         if response.status_code >= 400:
             st.error(f"❌ Error {response.status_code}: {response.text}")
             return None
         return response.json()
+
     except Exception as e:
         st.error(f"❌ Connection Error: {e}")
         return None
+    
 
 # --- TITLE ---
 st.title("🛠️ Project Management Center")
@@ -49,7 +88,7 @@ with tab1:
             new_start = c3.date_input("Start Date", value=date.today())
             new_end = c4.date_input("End Date (Optional)", value=None)
             is_active = c5.checkbox("Is Active?", value=True)
-
+            
             if st.form_submit_button("Create Project", type="primary"):
                 payload = {
                     "name": new_name.strip(),
@@ -61,6 +100,35 @@ with tab1:
                 authenticated_request("POST", "/admin/projects/", data=payload)
                 st.toast("Project created")
                 st.rerun()
+    
+    # --- BOTTOM: UPLOAD BULK PROJECTS
+    with st.expander("Upload Bulk Project (in .csv)", expanded=False):
+        uploaded_file = st.file_uploader(
+            "Upload a CSV file",
+            type=["csv"],
+            accept_multiple_files=False
+        )
+
+        if uploaded_file:
+            if uploaded_file.type != "text/csv" and uploaded_file.type != "application/vnd.ms-excel":
+                st.error("Invalid file type. Please upload a .csv file")
+            else:
+                if uploaded_file.size == 0:
+                    st.error("Empty file.")
+                else:
+                    st.success("File attached.")
+                    if st.button("Upload"):
+                        response = authenticated_request("POST", "/admin/bulk_uploads/projects", uploaded_file=uploaded_file)
+                        
+                        if not response:
+                            st.error("Error uploading file")
+                        else:
+                            st.success(f"Inserted: {response["inserted"]}")
+                            error = response["errors"]
+                            error = "Error: None" if len(error) == 0 else "Errors: " + ','.join(error)
+                            st.warning(error)
+        else:
+            st.warning("Select a file.")
 
     projects_data = authenticated_request("GET", "/admin/projects/")
 

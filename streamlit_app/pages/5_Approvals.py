@@ -12,10 +12,11 @@ def authenticated_request(method, endpoint, data=None):
     if not token:
         st.warning("🔒 Please login first.")
         st.stop()
-    
+
     headers = {"Authorization": f"Bearer {token}"}
     try:
         response = requests.request(method, f"{API_BASE_URL}{endpoint}", headers=headers, json=data)
+        # response = requests.request(method, f"{API_BASE_URL}{endpoint}", json=data)
         if response.status_code >= 400:
             st.error(f"Error {response.status_code}: {response.text}")
             return None
