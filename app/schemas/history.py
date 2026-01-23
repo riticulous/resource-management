@@ -39,3 +39,17 @@ class TimeHistoryResponse(BaseModel):
 class ApprovalRequest(BaseModel):
     status: str  # Must be "APPROVED" or "REJECTED"
     approval_comment: Optional[str] = None
+
+class UserProductivityResponse(BaseModel):
+    id: UUID
+    user_id: UUID
+    project_id: UUID
+    work_role: str
+    metric_date: date
+    hours_worked: float
+    tasks_completed: int
+    productivity_score: Optional[float] = None
+    notes: Optional[str] = None
+
+    class Config:
+        from_attributes = True

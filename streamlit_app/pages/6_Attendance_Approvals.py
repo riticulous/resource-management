@@ -92,7 +92,26 @@ def update_approval(approval_id, decision, comment):
 
 # --- PAGE HEADER ---
 st.title("📋 Attendance Request Approvals")
-st.markdown("Review and approve attendance requests from your team members.")
+
+# --- LOAD FILTERS ---
+projects = authenticated_request("GET", "/admin/projects") or []
+project_options = {"All Projects": None}
+for p in projects:
+    project_options[p["name"]] = p["id"]
+
+# --- TODAY'S METRICS ---
+query_date = datetime.now().date()
+# Fetch recent and filter client-side
+all_approvals = authenticated_request("GET", "/admin/attendance-request-approvals/") or []
+today_str = str(query_date)
+
+today_approvals = [a for a in all_approvals if a.get('decision') == "APPROVED" and a.get('decided_at', '').startswith(today_str)]
+today_rejections = [a for a in all_approvals if a.get('decision') == "REJECTED" and a.get('decided_at', '').startswith(today_str)]
+
+col_m1, col_m2, col_m3 = st.columns(3)
+col_m1.metric("Approvals Today", len(today_approvals))
+col_m2.metric("Rejections Today", len(today_rejections))
+
 st.markdown("---")
 
 # --- TABS ---
@@ -105,19 +124,55 @@ with tab1:
     st.subheader("Pending Attendance Requests")
     
     # Filters Row
-    col_filter, col_refresh = st.columns([3, 1])
-    with col_filter:
-        filter_type = st.selectbox(
-            "Filter by Request Type", 
-            ["All", "LEAVE", "WFH", "REGULARIZATION", "SHIFT_CHANGE", "OTHER"],
-            key="pending_filter"
-        )
-    with col_refresh:
-        st.write("")  # Spacer
-        if st.button("🔄 Refresh", key="refresh_pending"):
-            st.rerun()
+    f_col1, f_col2, f_col3, f_col4 = st.columns([1.5, 1.5, 1, 1])
+    with f_col1:
+        selected_project_name = st.selectbox("Filter Project", list(project_options.keys()), key="pending_project_filter")
+        selected_project_id = project_options[selected_project_name]
     
-    pending = get_pending_requests(request_type=filter_type if filter_type != "All" else None)
+    with f_col2:
+        filter_type = st.selectbox(
+            "Filter Type", 
+            ["All", "LEAVE", "WFH", "REGULARIZATION", "SHIFT_CHANGE", "OTHER"],
+            key="pending_type_filter"
+        )
+    
+    with f_col3:
+        date_from = st.date_input("From", value=None, key="pending_date_from")
+    
+    with f_col4:
+        date_to = st.date_input("To", value=None, key="pending_date_to")
+
+    # Fetch all pending
+    pending = authenticated_request("GET", "/admin/attendance-requests/", params={"status": "PENDING"}) or []
+    
+    # Get current user info to filter by their managed team
+    me = authenticated_request("GET", "/me/")
+    my_role = me.get("role", "").upper() if me else ""
+    
+    # If not admin, filter to only show requests from team members the manager is responsible for
+    if my_role != "ADMIN":
+        # Get projects managed by this user
+        my_projects = authenticated_request("GET", "/project_manager/projects") or []
+        
+        # Get all team member IDs from those projects
+        my_team_ids = set()
+        for proj in my_projects:
+            members = authenticated_request("GET", f"/project_manager/projects/{proj['id']}/members") or []
+            for m in members:
+                my_team_ids.add(str(m.get('id')))
+        
+        # Filter pending requests to only those from my team
+        pending = [r for r in pending if str(r.get('user_id')) in my_team_ids]
+    
+    # Client-side filtering
+    if filter_type != "All":
+        pending = [r for r in pending if r.get('request_type') == filter_type]
+    if selected_project_id:
+        pending = [r for r in pending if r.get('project_id') == str(selected_project_id)]
+    if date_from:
+        pending = [r for r in pending if r.get('start_date') >= str(date_from)]
+    if date_to:
+        pending = [r for r in pending if r.get('end_date') <= str(date_to)]
     
     if not pending:
         st.success("🎉 All caught up! No pending requests to approve.")
@@ -127,13 +182,13 @@ with tab1:
         for req in pending:
             with st.container(border=True):
                 # Layout with user info
-                col_user, col_info, col_dates, col_actions = st.columns([2, 2, 2, 1])
+                col_user, col_info, col_dates, col_actions = st.columns([2, 2, 2, 1.5])
                 
                 with col_user:
                     user_name = req.get('user_name', 'Unknown')
-                    user_id = req.get('user_id', 'N/A')
+                    user_id = req.get('user_id') or 'N/A'
                     st.markdown(f"### 👤 {user_name}")
-                    st.caption(f"User ID: `{user_id[:8]}...`")
+                    st.caption(f"User ID: `{str(user_id)[:8]}...`")
                     if req.get('user_email'):
                         st.caption(f"📧 {req['user_email']}")
                 
@@ -185,22 +240,31 @@ with tab2:
     st.subheader("Approval History")
     
     # Filters
-    col_filter1, col_filter2, col_refresh = st.columns([2, 2, 1])
-    with col_filter1:
-        filter_decision = st.selectbox("Filter by Decision", ["All", "APPROVED", "REJECTED"])
-    with col_filter2:
+    h_col1, h_col2, h_col3, h_col4 = st.columns([1.5, 1.5, 1, 1])
+    with h_col1:
+        filter_decision = st.selectbox("Status", ["All", "APPROVED", "REJECTED"], key="history_decision_filter")
+    with h_col2:
         filter_req_type = st.selectbox(
-            "Filter by Request Type", 
+            "Request Type", 
             ["All", "LEAVE", "WFH", "REGULARIZATION", "SHIFT_CHANGE", "OTHER"],
             key="history_type_filter"
         )
-    with col_refresh:
-        st.write("")
-        if st.button("🔄 Refresh", key="refresh_history"):
-            st.rerun()
+    with h_col3:
+        h_date_from = st.date_input("From", value=None, key="history_date_from")
+    with h_col4:
+        h_date_to = st.date_input("To", value=None, key="history_date_to")
     
-    # Get history and related request info
-    history = get_approval_history()
+    # Fetch all history (use limit if available)
+    history = authenticated_request("GET", "/admin/attendance-request-approvals/", params={"limit": 100}) or []
+    
+    # Client-side filtering
+    if filter_decision != "All":
+        history = [h for h in history if h.get('decision') == filter_decision]
+    if h_date_from:
+        history = [h for h in history if h.get('decided_at', '') >= str(h_date_from)]
+    if h_date_to:
+        # Simple string compare for dates in ISO timestamps
+        history = [h for h in history if h.get('decided_at', '') <= str(h_date_to) + " 23:59:59"]
     all_requests = get_all_requests()
     
     if not history:
@@ -254,7 +318,7 @@ with tab2:
                 return ''
             
             st.dataframe(
-                df.style.applymap(color_decision, subset=['Decision']),
+                df.style.map(color_decision, subset=['Decision']),
                 use_container_width=True,
                 hide_index=True
             )

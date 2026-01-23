@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
-from sqlalchemy import func, cast, Date
-from datetime import date, datetime
+from sqlalchemy import func
+from datetime import date
 from uuid import UUID
 
 from app.db.session import get_db
