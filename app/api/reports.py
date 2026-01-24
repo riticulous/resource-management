@@ -112,7 +112,7 @@ def export_role_drilldown(
     members = db.query(ProjectMember).filter(
         ProjectMember.project_id == project_id,
         ProjectMember.is_active == True
-    ).all()
+    ).join(User, ProjectMember.user_id == User.id).all()
 
     data = []
     for m in members:
@@ -124,6 +124,20 @@ def export_role_drilldown(
         minutes = att.minutes_worked if att else 0
         hours = round(minutes / 60, 2) if minutes else 0
 
+        # Check if date is user's weekoff
+        attendance_status = "ABSENT"
+        if att:
+            attendance_status = att.status
+        else:
+            # Check if it's a weekoff day (supports multiple weekoffs)
+            user = m.user
+            if user.weekoffs:
+                weekday_name = report_date.strftime("%A").upper()  # "SUNDAY", "MONDAY", etc.
+                # Check if weekday matches any of the user's weekoffs (array of enums)
+                weekoff_values = [w.value if hasattr(w, 'value') else str(w) for w in user.weekoffs]
+                if weekday_name in weekoff_values:
+                    attendance_status = "WEEKOFF"
+
         row = {
             "project_code": project.code,
             "project_name": project.name,
@@ -131,7 +145,7 @@ def export_role_drilldown(
             "role": m.work_role,
             "user_name": m.user.name,
             "email": m.user.email,
-            "attendance_status": att.status if att else "ABSENT",
+            "attendance_status": attendance_status,
             "minutes_worked": minutes, # Already existed, keeping it
             "hours_worked": hours
         }

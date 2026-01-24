@@ -1,6 +1,6 @@
 from pydantic import BaseModel, EmailStr
 from uuid import UUID
-from typing import Optional
+from typing import Optional, List
 from datetime import datetime, date
 from enum import Enum
 
@@ -11,6 +11,15 @@ class UserRole(str, Enum):
 class WorkRole(str, Enum):
     CONTRACTOR = "CONTRACTOR"
     EMPLOYEE = "EMPLOYEE"
+
+class WeekoffDays(str, Enum):
+    SUNDAY = "SUNDAY"
+    MONDAY = "MONDAY"
+    TUESDAY = "TUESDAY"
+    WEDNESDAY = "WEDNESDAY"
+    THURSDAY = "THURSDAY"
+    FRIDAY = "FRIDAY"
+    SATURDAY = "SATURDAY"
 
 class UserCreate(BaseModel):
     """
@@ -39,6 +48,7 @@ class UserResponse(BaseModel):
     quality_rating: Optional[str]
     rpm_user_id: Optional[UUID]
     soul_id: Optional[UUID]
+    weekoffs: Optional[List[WeekoffDays]]  # List to support multiple weekoffs
 
     created_at: datetime
     updated_at: Optional[datetime]
@@ -57,6 +67,10 @@ class UserUpdate(BaseModel):
     default_shift_id: Optional[UUID] = None
     rpm_user_id: Optional[UUID] = None
     soul_id: Optional[UUID] = None
+    weekoffs: Optional[List[WeekoffDays]] = None
+
+class WeekoffUpdate(BaseModel):
+    weekoffs: List[WeekoffDays]  # Support multiple weekoffs
 
 class UserQualityUpdate(BaseModel):
     quality_rating: str
